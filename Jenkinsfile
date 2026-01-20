@@ -14,25 +14,23 @@ pipeline {
 
         stage('Clean Workspace') {
             steps {
+                echo 'Cleaning workspace'
                 deleteDir()
             }
         }
 
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/jannisamba1-design/movie-ticket-booking.git'
-                    ]]
-                ])
+                echo 'Checking out source code'
+                checkout scm
             }
         }
 
         stage('Build Booking Service') {
             steps {
+                echo 'Building booking-service'
                 dir('booking-service') {
+                    sh 'mvn -version'
                     sh 'mvn clean package -DskipTests'
                 }
             }
@@ -40,10 +38,21 @@ pipeline {
 
         stage('Docker Build') {
             steps {
+                echo 'Building Docker image'
                 dir('booking-service') {
+                    sh 'docker version'
                     sh 'docker build -t booking-service:${BUILD_NUMBER} .'
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully'
+        }
+        always {
+            echo 'Pipeline finished'
         }
     }
 }
