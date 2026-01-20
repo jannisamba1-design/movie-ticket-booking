@@ -1,0 +1,35 @@
+name: show-service-ci
+
+on:
+  push:
+    paths:
+      - show-service/**
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build JAR
+        working-directory: show-service
+        run: mvn clean package -DskipTests
+
+      - name: Docker build
+        working-directory: show-service
+        run: docker build -t show-service:${{ github.sha }} .
+
+      - name: Push to ECR
+        run: |
+          aws ecr get-login-password --region ap-south-1 \
+          | docker login --username AWS --password-stdin <ECR_URL>
+          docker tag show-service:${{ github.sha }} <ECR_URL>/show-service:${{ github.sha }}
+          docker push <ECR_URL>/show-service:${{ github.sha }}

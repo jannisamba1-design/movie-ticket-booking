@@ -1,0 +1,116 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: booking-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - booking-net
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7
+    container_name: booking-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - booking-net
+    command: [ "redis-server", "--appendonly", "yes" ]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: booking-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - booking-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: booking-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: booking-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://booking-kafka:9094
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - booking-net
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - show-service
+      - booking-service
+      - inventory-service
+    networks:
+      - booking-net
+
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+    image: movie-ticket-booking-service
+    container_name: booking-service
+    ports:
+      - "9091:9091"
+    env_file:
+      - ./booking-service/.env
+    depends_on:
+      - postgres
+      - inventory-service
+    networks:
+      - booking-net
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    image: movie-ticket-inventory-service
+    container_name: inventory-service
+    ports:
+      - "9093:9093"
+    env_file:
+      - ./inventory-service/.env
+    depends_on:
+      - redis
+    networks:
+      - booking-net
+
+  show-service:
+    build:
+      context: ./show-service
+      dockerfile: Dockerfile
+    image: movie-ticket-show-service
+    container_name: show-service
+    ports:
+      - "9092:9092"
+    env_file:
+      - ./show-service/.env
+    depends_on:
+      - postgres
+    networks:
+      - booking-net
+
+networks:
+  booking-net:
+    driver: bridge
+
+volumes:
+  postgres-data:

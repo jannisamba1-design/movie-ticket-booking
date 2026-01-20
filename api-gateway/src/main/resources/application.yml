@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: show-service
+          uri: http://show-service:9092
+          predicates:
+            - Path=/api/shows/**
+          filters:
+            - StripPrefix=1
+
+        - id: booking-service
+          uri: http://booking-service:9091
+          predicates:
+            - Path=/api/bookings/**
+          filters:
+            - StripPrefix=1
+
+        - id: inventory-service
+          uri: http://inventory-service:9093
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - StripPrefix=1

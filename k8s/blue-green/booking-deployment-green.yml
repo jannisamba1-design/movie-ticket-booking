@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service-green
+  namespace: movie-booking
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: booking-service
+      version: green
+  template:
+    metadata:
+      labels:
+        app: booking-service
+        version: green
+    spec:
+      containers:
+        - name: booking-service
+          image: booking-service:green
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9091
