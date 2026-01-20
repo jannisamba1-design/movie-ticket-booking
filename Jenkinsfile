@@ -1,58 +1,64 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'jdk-17'
-        maven 'maven-3'
-    }
-
-    options {
-        skipDefaultCheckout(true)
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '334228653606'
+        ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/booking-service"
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
 
-        stage('Clean Workspace') {
-            steps {
-                echo 'Cleaning workspace'
-                deleteDir()
-            }
-        }
-
         stage('Checkout') {
             steps {
-                echo 'Checking out source code'
                 checkout scm
             }
         }
 
-        stage('Build Booking Service') {
+        stage('Build Application') {
             steps {
-                echo 'Building booking-service'
-                dir('booking-service') {
-                    sh 'mvn -version'
-                    sh 'mvn clean package -DskipTests'
-                }
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Docker Build') {
             steps {
-                echo 'Building Docker image'
-                dir('booking-service') {
-                    sh 'docker version'
-                    sh 'docker build -t booking-service:${BUILD_NUMBER} .'
-                }
+                sh "docker build -t booking-service:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                sh """
+                aws ecr get-login-password --region ${AWS_REGION} |
+                docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                """
+            }
+        }
+
+        stage('Docker Tag') {
+            steps {
+                sh """
+                docker tag booking-service:${IMAGE_TAG} \
+                ${ECR_REPO}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                sh "docker push ${ECR_REPO}:${IMAGE_TAG}"
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline completed successfully'
+            echo 'Image successfully pushed to ECR'
         }
-        always {
-            echo 'Pipeline finished'
+        failure {
+            echo 'CI build failed'
         }
     }
 }
