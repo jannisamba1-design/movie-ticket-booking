@@ -6,11 +6,27 @@ pipeline {
         maven 'maven-3'
     }
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     stages {
+
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
 
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/jannisamba1-design/movie-ticket-booking.git'
+                    ]]
+                ])
             }
         }
 
@@ -28,15 +44,6 @@ pipeline {
                     sh 'docker build -t booking-service:${BUILD_NUMBER} .'
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'CI build successful'
-        }
-        failure {
-            echo 'CI build failed'
         }
     }
 }
