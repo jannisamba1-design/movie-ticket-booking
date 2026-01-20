@@ -8,6 +8,12 @@ pipeline {
 
     options {
         skipDefaultCheckout(true)
+        timestamps()
+    }
+
+    environment {
+        SERVICE_NAME = 'booking-service'
+        IMAGE_TAG   = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -41,9 +47,21 @@ pipeline {
         stage('Docker Build') {
             steps {
                 dir('booking-service') {
-                    sh 'docker build -t booking-service:${BUILD_NUMBER} .'
+                    sh """
+                        docker build \
+                          -t ${SERVICE_NAME}:${IMAGE_TAG} .
+                    """
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Booking Service build & docker image created successfully"
+        }
+        failure {
+            echo "❌ CI pipeline failed"
         }
     }
 }
